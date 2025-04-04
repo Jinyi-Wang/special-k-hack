@@ -52,7 +52,10 @@ const Main: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={toggleAnalytics}
-              className={`btn ${showAnalytics ? 'btn-accent' : 'btn-outline'} flex items-center gap-2 p-4 mx-4`}
+              className={`btn ${showAnalytics
+                  ? 'bg-green-700 text-white hover:bg-slate-300 hover:text-black'
+                  : 'bg-slate-300 text-black hover:bg-green-700 hover:text-white'
+                } flex items-center gap-2 p-4 mx-4`}
               title="Analytics Dashboard"
             >
               <BarChart3 size={18} />
