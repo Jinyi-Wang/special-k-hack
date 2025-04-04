@@ -585,7 +585,13 @@ async def list_chats(
     for chat in chats:
         messages = db.get_messages(chat["id"])
         last_message = messages[-1]["content"] if messages else None
-        title = (messages[0]["content"][:30]+"...") if messages else "Chat"
+        title = "Chat"
+        if messages:
+            try:
+                if (messages[1]["content"]):
+                    title = (messages[1]["content"][:30]+"...")
+            except:
+                pass
 
         chat_list.append(ChatListItem(
             id=chat["id"],
