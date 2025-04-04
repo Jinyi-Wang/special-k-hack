@@ -1,3 +1,4 @@
+import { StoredChatSession } from '../../services/chatStorage';
 import { ApiClientInterface } from '../types';
 
 export interface Source {
@@ -63,6 +64,15 @@ export function createChatApi(client: ApiClientInterface) {
       };
 
       const response = await client.get<ChatSession>(`/api/chats/${chatId}`, on_error);
+      return response;
+    },
+
+    async getAllChats(): Promise<StoredChatSession[]> {
+      const on_error = () => {
+        // Error is handled by caller
+      };
+
+      const response = await client.get<StoredChatSession[]>(`/api/chats`, on_error);
       return response;
     },
 

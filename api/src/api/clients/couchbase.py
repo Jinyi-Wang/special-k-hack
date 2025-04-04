@@ -241,6 +241,33 @@ class CouchbaseChatClient:
             logger.warning(f"Failed to get chat: {str(e)}")
             return None
 
+    def get_all_chats(self) -> list[dict]:
+        """
+        Retrieve all chat sessions from the database.
+
+        Returns:
+            A list of dictionaries representing chat sessions.
+        """
+        if not self.chats:
+            self.init()
+
+        # Make sure the query service is available
+        self.await_up()
+
+        try:
+            query = f"""
+            SELECT c.*
+            FROM {self.bucket_name}.{self.scope_name}.{self.chats_coll} c
+            """
+            result = self.cluster.query(query)
+            rows =  []
+            for row in result:
+                rows.append(row)
+            return rows
+        except Exception as e:
+            logger.exception("Failed to retrieve all chats.")
+            raise
+
     def get_messages(self, chat_id: str) -> List[Dict[str, Any]]:
         """
         Get all messages for a chat session.
@@ -267,7 +294,10 @@ class CouchbaseChatClient:
 
             options = QueryOptions(named_parameters={"chat_id": chat_id})
             result = self.cluster.query(query, options)
-            return [row for row in result]
+            rows =  []
+            for row in result:
+                rows.append(row)
+            return rows
         except Exception:
             logger.exception("Failed to get messages.")
             raise
