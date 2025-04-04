@@ -32,7 +32,7 @@ const Main: React.FC = () => {
 
           <button
             onClick={toggleDarkMode}
-            className="btn rounded-full btn-outline border-slate-700 ml-2 p-3"
+            className="btn rounded-full btn-outline border-slate-600 ml-2 p-3"
             title="Toggle dark mode"
           >
             {isDark ? '☀️' : '🌙'}
