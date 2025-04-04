@@ -19,7 +19,8 @@ class CouchbaseChatClient:
         bucket_name: str = None,
         scope: str = "_default",
         chats_coll: str = "chats",
-        messages_coll: str = "chat_messages"
+        messages_coll: str = "chat_messages",
+        ratings_coll: str = "chat_ratings"
     ):
         self.url = url
         self.username = username
@@ -28,6 +29,8 @@ class CouchbaseChatClient:
         self.scope_name = scope
         self.chats_coll = chats_coll
         self.messages_coll = messages_coll
+        self.ratings_coll = ratings_coll
+        self.ratings = None
         self.cluster = None
         self.bucket = None
         self.scope = None
@@ -63,7 +66,7 @@ class CouchbaseChatClient:
             bucket = self.cluster.bucket(self.bucket_name)
             collection_manager = bucket.collections()
 
-            for coll in [self.messages_coll, self.chats_coll]:
+            for coll in [self.messages_coll, self.chats_coll, self.ratings_coll]:
                 try:
                     collection_manager.create_collection(self.scope_name, coll)
                     logger.info(f"Created collection: {coll}")
@@ -77,6 +80,7 @@ class CouchbaseChatClient:
 
             self.chats = self.scope.collection(self.chats_coll)
             self.messages = self.scope.collection(self.messages_coll)
+            self.ratings = self.scope.collection(self.ratings_coll)
 
             logger.info("Collections initialized successfully")
         except Exception as e:
@@ -148,6 +152,7 @@ class CouchbaseChatClient:
             "id": chat_id,
             "created_at": now,
             "updated_at": now,
+            "closed": False,
             "metadata": metadata or {}
         }
 
@@ -306,6 +311,33 @@ class CouchbaseChatClient:
             logger.error("Failed to delete chat.")
             raise
 
+    def close_chat(self, chat_id: str) -> bool:
+        """
+        Mark a chat session as closed.
+
+        Args:
+            chat_id: The UUID of the chat session
+
+        Returns:
+            True if the chat was closed successfully, False if chat not found
+        """
+        if not self.chats:
+            self.init()
+
+        try:
+            chat = self.get_chat(chat_id)
+            if not chat:
+                return False
+
+            chat["closed"] = True
+            chat["updated_at"] = datetime.utcnow().isoformat()
+            self.chats.upsert(chat_id, chat)
+            logger.info(f"Closed chat {chat_id}")
+            return True
+        except Exception:
+            logger.exception("Failed to close chat")
+            raise
+
     def close(self) -> None:
         """Close the database connection."""
         if self.cluster:
@@ -318,3 +350,81 @@ class CouchbaseChatClient:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+
+    def set_chat_rating(
+        self,
+        chat_id: str,
+        rating: float,
+        is_ai_inferred: bool = False,
+        metadata: Dict[str, Any] = None
+    ) -> str:
+        """
+        Set a rating for a chat conversation.
+
+        Args:
+            chat_id: The UUID of the chat session
+            rating: Rating value (typically 0-5)
+            is_ai_inferred: Whether the rating was inferred by AI
+            metadata: Optional metadata for the rating
+
+        Returns:
+            The UUID of the created rating
+        """
+        if not self.ratings:
+            self.init()
+
+        # Verify chat exists
+        chat = self.get_chat(chat_id)
+        if not chat:
+            raise ValueError(f"Chat with ID {chat_id} not found")
+
+        rating_id = str(uuid.uuid4())
+        now = datetime.utcnow().isoformat()
+        doc = {
+            "id": rating_id,
+            "chat_id": chat_id,
+            "rating": float(rating),
+            "is_ai_inferred": bool(is_ai_inferred),
+            "created_at": now,
+            "metadata": metadata or {}
+        }
+
+        try:
+            self.ratings.upsert(rating_id, doc)
+            logger.info(f"Added rating {rating_id} for chat {chat_id}")
+            return rating_id
+        except Exception:
+            logger.exception("Failed to add rating")
+            raise
+
+    def get_chat_rating(self, chat_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get the most recent rating for a chat.
+
+        Args:
+            chat_id: The UUID of the chat session
+
+        Returns:
+            The most recent rating or None if not found
+        """
+        if not self.ratings:
+            self.init()
+
+        self.await_up()
+
+        try:
+            query = f"""
+            SELECT r.*
+            FROM {self.bucket_name}.{self.scope_name}.{self.ratings_coll} r
+            WHERE r.chat_id = $chat_id
+            ORDER BY r.created_at DESC
+            LIMIT 1
+            """
+
+            options = QueryOptions(named_parameters={"chat_id": chat_id})
+            result = self.cluster.query(query, options)
+            rows = [row for row in result]
+            return rows[0] if rows else None
+        except Exception:
+            logger.exception("Failed to get rating")
+            raise
