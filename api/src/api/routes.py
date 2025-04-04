@@ -141,6 +141,13 @@ class ChatMessageRequest(BaseModel):
     content: str
     metadata: dict[str, Any] | None = None
 
+
+class GenerateMessage(BaseModel):
+    role: str
+    content: str
+class GenerateChatMessageRequest(BaseModel):
+    messages: list[GenerateMessage]
+
 class ChatMessageResponse(BaseModel):
     message: Message
     response: Message
@@ -176,6 +183,13 @@ class KnowledgeResult(BaseModel):
     thoughts: str
     relevant_items: list[dict[str, Any]]
 
+
+## Satisfaction Classification ##
+class SatisfactionClassification(BaseModel):
+    thoughts: str
+    satisfaction: Literal[1, 2, 3, 4, 5]
+    moodChange: Literal["improved", "neutral", "deteriorated"]
+
 #### Helper Functions ####
 
 @trace
@@ -194,6 +208,33 @@ def determine_intent(opper: Opper, messages):
         """,
         input={"messages": messages},
         output_type=IntentClassification
+    )
+    return intent
+
+@trace
+def determine_satisfaction(opper: Opper, messages):
+    """Determine the satisfaction of the user in this conversation."""
+    intent, _ = opper.call(
+        name="determine_satisfaction",
+        instructions="""
+        Analyze the the satisfaction of the user in this conversation.
+        - Was his problems resolved?
+        - Did he felt taken care of?
+        - Did he get the information he was looking for?
+        rate on a scale from 1 to 5
+        1 = Very Unsatisfied
+        2 = Unsatisfied
+        3 = Neutral
+        4 = Satisfied
+        5 = Very Satisfied
+        
+        Analyze how user mood changed during the conversation:
+        - improved
+        - neutral
+        - deteriorated
+        """,
+        input={"messages": messages},
+        output_type=SatisfactionClassification
     )
     return intent
 
@@ -269,6 +310,11 @@ def process_message(opper: Opper, messages):
             "found_relevant_info": False,
             "message": "I couldn't find specific information about that in our knowledge base."
         }
+
+@trace
+def evaluate_conversation(opper: Opper, messages) -> SatisfactionClassification:
+    satisfaction = determine_satisfaction(opper, messages)
+    return satisfaction 
 
 @trace
 def bake_response(opper: Opper, messages, analysis=None):
@@ -367,8 +413,26 @@ async def close_chat(
     success = db.close_chat(chat_id)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to close chat")
+    
+    # Rate Support-Ticket
+    db_messages = db.get_messages(chat_id)
+    
+    formatted_messages = [
+    {
+        "role": msg["role"],
+        "content": msg["content"]
+    }
+    for msg in db_messages
+    ]
+    
+    with opper.traces.start("customer_support_chat_evaluation"):
+        analysis = evaluate_conversation(opper, formatted_messages)
+        
 
-    return MessageResponse(message=f"Chat {chat_id} closed successfully")
+    # Add assistant response to database
+    (response_id, response_ts) = db.set_chat_rating(chat_id, analysis.satisfaction, True)
+    
+    return MessageResponse(message=f"Chat {chat_id} evaluated successfully")
 
 @router.get("/chats/{chat_id}/messages", response_model=ChatHistory)
 async def get_chat_messages(
@@ -453,6 +517,35 @@ async def add_chat_message(
             created_at=response_ts,
             metadata={}
         )
+    )
+    
+@router.post("/chats/generate", response_model=ChatSession)
+async def add_chat_message(
+    request: GenerateChatMessageRequest,
+    db: DbHandle,
+    opper: OpperHandle,
+) -> ChatMessageResponse:
+    """Insert a conversation into DB"""
+    # Check if chat exists
+    if not request or not request.content.strip():
+        raise HTTPException(status_code=400, detail="Message content cannot be empty")
+
+    (query_id, query_ts) = db.add_message(
+        chat_id, "user", request.content, request.metadata
+    )
+
+    request = request or CreateChatRequest()
+    chat_id = db.create_chat(request.metadata)
+    chat = db.get_chat(chat_id)
+
+    for message in request.messages:
+        db.add_message(chat_id, message.role, message.content)
+
+    return ChatSession(
+        id=chat["id"],
+        created_at=str(chat["created_at"]),
+        updated_at=str(chat["updated_at"]),
+        metadata=chat["metadata"]
     )
 
 @router.delete("/chats/{chat_id}", response_model=MessageResponse)

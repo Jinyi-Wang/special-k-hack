@@ -133,7 +133,7 @@ class CouchbaseChatClient:
         # If we've exhausted all retries
         raise Exception(f"Couchbase query service not available after {max_retries} attempts")
 
-    def create_chat(self, metadata: Dict[str, Any] = None) -> str:
+    def create_chat(self, metadata: Dict[str, Any] = None, overwrite_date:str=None) -> str:
         """
         Create a new chat session.
 
@@ -147,7 +147,7 @@ class CouchbaseChatClient:
             self.init()
 
         chat_id = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat()
+        now = datetime.utcnow().isoformat() if not overwrite_date else overwrite_date
         doc = {
             "id": chat_id,
             "created_at": now,
@@ -355,6 +355,7 @@ class CouchbaseChatClient:
         self,
         chat_id: str,
         rating: float,
+        moodChange: float = 0,
         is_ai_inferred: bool = False,
         metadata: Dict[str, Any] = None
     ) -> str:
@@ -384,6 +385,7 @@ class CouchbaseChatClient:
             "id": rating_id,
             "chat_id": chat_id,
             "rating": float(rating),
+            "moodChange": float(moodChange),
             "is_ai_inferred": bool(is_ai_inferred),
             "created_at": now,
             "metadata": metadata or {}
