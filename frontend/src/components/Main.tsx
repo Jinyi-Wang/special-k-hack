@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Route, Routes, Link } from 'react-router-dom';
+import { BarChart3 } from 'lucide-react';
 import ChatView from './ChatView';
+import CSAnalyticsDashboard from './CSAnalyticsDashboard';
 
 const Main: React.FC = () => {
   const [isDark, setIsDark] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   // Load theme on mount
   useEffect(() => {
@@ -21,6 +24,10 @@ const Main: React.FC = () => {
     setIsDark(!isDark);
   };
 
+  const toggleAnalytics = () => {
+    setShowAnalytics(!showAnalytics);
+  };
+
   return (
     <main className="min-h-screen flex flex-col">
       <header className="bg-primary text-primary-content p-4">
@@ -30,21 +37,38 @@ const Main: React.FC = () => {
             <p className="opacity-80">Get support with knowledge-powered AI assistance</p>
           </Link>
 
-          <button
-            onClick={toggleDarkMode}
-            className="btn rounded-full btn-outline border-slate-600 ml-2 p-3"
-            title="Toggle dark mode"
-          >
-            {isDark ? '☀️' : '🌙'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleAnalytics}
+              className={`btn ${showAnalytics ? 'btn-accent' : 'btn-outline'} flex items-center gap-2`}
+              title="Analytics Dashboard"
+            >
+              <BarChart3 size={18} />
+              <span className="hidden sm:inline">Analytics</span>
+            </button>
+
+            <button
+              onClick={toggleDarkMode}
+              className="btn rounded-full btn-outline border-slate-600 ml-2 p-3"
+              title="Toggle dark mode"
+            >
+              {isDark ? '☀️' : '🌙'}
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        <Routes>
-          <Route path="/" element={<ChatView />} />
-          <Route path="/chat/:chatId" element={<ChatView />} />
-        </Routes>
+        {showAnalytics ? (
+          <div className="w-full p-4 overflow-auto">
+            <CSAnalyticsDashboard />
+          </div>
+        ) : (
+          <Routes>
+            <Route path="/" element={<ChatView />} />
+            <Route path="/chat/:chatId" element={<ChatView />} />
+          </Routes>
+        )}
       </div>
 
       <footer className="bg-neutral text-neutral-content p-4 text-center text-sm">
