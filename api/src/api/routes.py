@@ -580,17 +580,16 @@ async def list_chats(
 ) -> list[ChatListItem]:
     """Get a list of all chat sessions."""
     chats = db.get_all_chats()
-    print("chats"*20)
-    print(chats)
     chat_list = []
 
     for chat in chats:
         messages = db.get_messages(chat["id"])
         last_message = messages[-1]["content"] if messages else None
+        title = (messages[0]["content"][:30]+"...") if messages else "Chat"
 
         chat_list.append(ChatListItem(
             id=chat["id"],
-            title=chat["metadata"].get("title") or "Chat",
+            title=title,
             last_message=last_message,
             last_updated=str(chat["updated_at"])
         ))
