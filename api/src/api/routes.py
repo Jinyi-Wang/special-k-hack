@@ -148,6 +148,12 @@ class ChatMessageResponse(BaseModel):
 class ChatHistory(BaseModel):
     chat_id: str
     messages: list[Message]
+    
+# Add this to the Models section after the ChatHistory class
+class ChatRating(BaseModel):
+    rating: float
+    is_ai_inferred: bool = False
+    metadata: dict[str, Any] | None = None
 
 ## Knowledge Base ##
 class KnowledgeItem(BaseModel):
@@ -345,6 +351,24 @@ async def get_chat(
         updated_at=str(chat["updated_at"]),
         metadata=chat["metadata"]
     )
+    
+
+@router.post("/chats/{chat_id}/close", response_model=MessageResponse)
+async def close_chat(
+    db: DbHandle,
+    chat_id: str = Path(..., description="The UUID of the chat session"),
+) -> MessageResponse:
+    """Close a chat session."""
+    chat = db.get_chat(chat_id)
+    if not chat:
+        raise HTTPException(status_code=404, detail=f"Chat with ID {chat_id} not found")
+
+    # Mark the chat as closed in the database
+    success = db.close_chat(chat_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to close chat")
+
+    return MessageResponse(message=f"Chat {chat_id} closed successfully")
 
 @router.get("/chats/{chat_id}/messages", response_model=ChatHistory)
 async def get_chat_messages(
@@ -446,3 +470,26 @@ async def delete_chat(
         raise HTTPException(status_code=500, detail="Failed to delete chat")
 
     return MessageResponse(message=f"Chat {chat_id} deleted successfully")
+
+# Add this to the Routes section before the delete_chat endpoint
+@router.post("/chats/{chat_id}/rating", response_model=MessageResponse)
+async def set_chat_rating(
+    request: ChatRating,
+    db: DbHandle,
+    chat_id: str = Path(..., description="The UUID of the chat session"),
+) -> MessageResponse:
+    """Set a rating for a chat session."""
+    chat = db.get_chat(chat_id)
+    if not chat:
+        raise HTTPException(status_code=404, detail=f"Chat with ID {chat_id} not found")
+
+    try:
+        rating_id = db.set_chat_rating(
+            chat_id=chat_id,
+            rating=request.rating,
+            is_ai_inferred=request.is_ai_inferred,
+            metadata=request.metadata
+        )
+        return MessageResponse(message=f"Rating {rating_id} added successfully for chat {chat_id}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

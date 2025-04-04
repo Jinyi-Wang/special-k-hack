@@ -16,6 +16,9 @@ const Chat: React.FC<ChatProps> = ({ chatId, client }) => {
   const [selectedMessageIndex, setSelectedMessageIndex] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [chatIsClosed, setChatIsClosed] = useState(false);
+
+
 
   // We don't need any URL or pending message checking anymore
   // The WelcomeScreen component awaits the response before navigating here
@@ -26,6 +29,9 @@ const Chat: React.FC<ChatProps> = ({ chatId, client }) => {
 
     const loadChatHistory = async () => {
       try {
+        const chat = await chatApi.getChat(chatId);
+        setChatIsClosed(chat.closed);
+
         const chatMessages = await chatApi.getChatMessages(chatId);
 
         // Convert assistant to bot for rendering
@@ -143,11 +149,10 @@ const Chat: React.FC<ChatProps> = ({ chatId, client }) => {
             {messages.map((message, index) => (
               <div
                 key={index}
-                className={`p-3 rounded ${
-                  message.role === 'user'
+                className={`p-3 rounded ${message.role === 'user'
                     ? 'bg-primary text-primary-content self-end'
                     : 'bg-base-200'
-                } ${message.isLoading ? 'opacity-70' : ''}`}
+                  } ${message.isLoading ? 'opacity-70' : ''}`}
                 style={{ maxWidth: '80%', alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start' }}
               >
                 <div>
@@ -182,7 +187,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, client }) => {
       <div className="p-4 bg-base-300">
         <form onSubmit={handleSubmit}>
           <div className="form-control">
-            <div className="input-group flex">
+            <div className="input-group flex gap-1">
               <input
                 type="text"
                 className="input flex-grow"
@@ -200,6 +205,14 @@ const Chat: React.FC<ChatProps> = ({ chatId, client }) => {
                   <span className="loading loading-spinner"></span> :
                   'Send'
                 }
+              </button>
+              <button
+                type="submit"
+                className="btn btn-secondary"
+                disabled={chatIsClosed}
+                onClick={async () => { await chatApi.closeChat(chatId); setChatIsClosed(true); }}
+              >
+                Close Conversation
               </button>
             </div>
           </div>

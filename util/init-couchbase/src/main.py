@@ -20,7 +20,7 @@ COUCHBASE_TLS = get_env_var('COUCHBASE_TLS', 'false').lower() == 'true'
 COUCHBASE_MAIN_BUCKET_NAME = get_env_var('COUCHBASE_MAIN_BUCKET_NAME')
 COUCHBASE_TYPE = get_env_var('COUCHBASE_TYPE', 'server')
 
-data_structure_spec = {"_default": ["chats", "chat_messages"]}
+data_structure_spec = {"_default": ["chats", "chat_messages", "chat_ratings"]}
 
 def main():
     controller_cluster = ControllerCluster(COUCHBASE_HOST, COUCHBASE_USERNAME, COUCHBASE_PASSWORD, COUCHBASE_TLS, COUCHBASE_TYPE)
