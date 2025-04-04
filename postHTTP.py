@@ -90,7 +90,7 @@ if last_uploaded_index < len(data_list):
     conversation_data = {"messages": conversation["messages"]}
 
     # Send the POST request with the entire conversation as one message
-    response = requests.get(url, json=conversation_data)
+    response = requests.post(url, json=conversation_data)
 
     # Check if the request was successful
     if response.status_code == 200:
