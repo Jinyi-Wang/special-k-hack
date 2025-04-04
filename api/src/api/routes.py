@@ -159,6 +159,7 @@ class ChatHistory(BaseModel):
 # Add this to the Models section after the ChatHistory class
 class ChatRating(BaseModel):
     rating: float
+    moodChange: float
     is_ai_inferred: bool = False
     metadata: dict[str, Any] | None = None
 
@@ -402,6 +403,7 @@ async def get_chat(
 @router.post("/chats/{chat_id}/close", response_model=MessageResponse)
 async def close_chat(
     db: DbHandle,
+    opper: OpperHandle,
     chat_id: str = Path(..., description="The UUID of the chat session"),
 ) -> MessageResponse:
     """Close a chat session."""
@@ -430,7 +432,12 @@ async def close_chat(
         
 
     # Add assistant response to database
-    (response_id, response_ts) = db.set_chat_rating(chat_id, analysis.satisfaction, True)
+    moodChange = 0
+    if(analysis.moodChange == "improved"):
+        moodChange = 1
+    elif(analysis.moodChange == "deteriorated"):
+        moodChange = -1
+    rating_id = db.set_chat_rating(chat_id, analysis.satisfaction, moodChange=moodChange, is_ai_inferred=True)
     
     return MessageResponse(message=f"Chat {chat_id} evaluated successfully")
 
@@ -520,25 +527,21 @@ async def add_chat_message(
     )
     
 @router.post("/chats/generate", response_model=ChatSession)
-async def add_chat_message(
+async def generate_chat_message(
     request: GenerateChatMessageRequest,
     db: DbHandle,
-    opper: OpperHandle,
 ) -> ChatMessageResponse:
     """Insert a conversation into DB"""
     # Check if chat exists
-    if not request or not request.content.strip():
+    if not request or not request.messages:
         raise HTTPException(status_code=400, detail="Message content cannot be empty")
 
-    (query_id, query_ts) = db.add_message(
-        chat_id, "user", request.content, request.metadata
-    )
-
     request = request or CreateChatRequest()
-    chat_id = db.create_chat(request.metadata)
+    chat_id = db.create_chat()
     chat = db.get_chat(chat_id)
 
     for message in request.messages:
+        print("message", message)
         db.add_message(chat_id, message.role, message.content)
 
     return ChatSession(
@@ -580,6 +583,7 @@ async def set_chat_rating(
         rating_id = db.set_chat_rating(
             chat_id=chat_id,
             rating=request.rating,
+            moodChange=request.moodChange,
             is_ai_inferred=request.is_ai_inferred,
             metadata=request.metadata
         )

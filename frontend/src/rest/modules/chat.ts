@@ -41,6 +41,7 @@ export interface MessageResponse {
 // Add this interface with the other interfaces
 export interface ChatRating {
   rating: number;
+  moodChange: number;
   is_ai_inferred?: boolean;
   metadata?: any;
 }
