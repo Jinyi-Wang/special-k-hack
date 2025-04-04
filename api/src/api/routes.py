@@ -174,6 +174,12 @@ class KnowledgeItem(BaseModel):
 
 class KnowledgeSearchResponse(BaseModel):
     items: list[KnowledgeItem]
+    
+class ChatListItem(BaseModel):
+    id: str
+    title: str
+    last_message: str | None = None
+    last_updated: str
 
 ## Intent Classification ##
 class IntentClassification(BaseModel):
@@ -567,7 +573,30 @@ async def delete_chat(
 
     return MessageResponse(message=f"Chat {chat_id} deleted successfully")
 
-# Add this to the Routes section before the delete_chat endpoint
+
+@router.get("/chats", response_model=list[ChatListItem])
+async def list_chats(
+    db: DbHandle,
+) -> list[ChatListItem]:
+    """Get a list of all chat sessions."""
+    chats = db.get_all_chats()
+    print("chats"*20)
+    print(chats)
+    chat_list = []
+
+    for chat in chats:
+        messages = db.get_messages(chat["id"])
+        last_message = messages[-1]["content"] if messages else None
+
+        chat_list.append(ChatListItem(
+            id=chat["id"],
+            title=chat["metadata"].get("title") or "Chat",
+            last_message=last_message,
+            last_updated=str(chat["updated_at"])
+        ))
+
+    return chat_list
+
 @router.post("/chats/{chat_id}/rating", response_model=MessageResponse)
 async def set_chat_rating(
     request: ChatRating,

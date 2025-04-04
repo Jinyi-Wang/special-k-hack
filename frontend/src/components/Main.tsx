@@ -1,12 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Route, Routes, Link } from 'react-router-dom';
 import { BarChart3 } from 'lucide-react';
 import ChatView from './ChatView';
 import CSAnalyticsDashboard from './CSAnalyticsDashboard';
+import { storeChat } from '../services/chatStorage';
+import { createChatApi } from '../rest/modules/chat';
+import { ApiClientRest } from '../rest/api_client_rest';
 
 const Main: React.FC = () => {
   const [isDark, setIsDark] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const apiClient = useMemo(() => new ApiClientRest(), []);
+  const chatApi = useMemo(() => createChatApi(apiClient), [apiClient]);
 
   // Load theme on mount
   useEffect(() => {
@@ -15,6 +20,13 @@ const Main: React.FC = () => {
     const theme = storedTheme || (prefersDark ? 'dark' : 'light');
     document.documentElement.setAttribute('data-theme', theme);
     setIsDark(theme === 'dark');
+
+    chatApi.getAllChats().then(result => {
+      for (const chat of result) {
+        storeChat(chat);
+      }
+    })
+
   }, []);
 
   const toggleDarkMode = () => {
