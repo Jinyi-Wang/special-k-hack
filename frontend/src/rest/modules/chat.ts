@@ -25,6 +25,7 @@ export interface ChatSession {
   id: string;
   created_at: string;
   updated_at: string;
+  closed: boolean;
   metadata: any;
 }
 
@@ -35,6 +36,13 @@ export interface ChatMessageResponse {
 
 export interface MessageResponse {
   message: string;
+}
+
+// Add this interface with the other interfaces
+export interface ChatRating {
+  rating: number;
+  is_ai_inferred?: boolean;
+  metadata?: any;
 }
 
 export function createChatApi(client: ApiClientInterface) {
@@ -115,6 +123,32 @@ export function createChatApi(client: ApiClientInterface) {
 
       const response = await client.get<{ items: Source[] }>(url, on_error);
       return response.items;
-    }
+    },
+
+    async closeChat(chatId: string): Promise<MessageResponse> {
+      const on_error = () => {
+        // Error is handled by caller
+      };
+
+      const response = await client.post<MessageResponse>(
+        `/api/chats/${chatId}/close`,
+        on_error,
+        {}
+      );
+      return response;
+    },
+
+    async setChatRating(chatId: string, rating: ChatRating): Promise<MessageResponse> {
+      const on_error = () => {
+        // Error is handled by caller
+      };
+
+      const response = await client.post<MessageResponse>(
+        `/api/chats/${chatId}/rating`,
+        on_error,
+        rating
+      );
+      return response;
+    },
   };
 }
