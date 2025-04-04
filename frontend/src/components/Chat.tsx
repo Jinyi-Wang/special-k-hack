@@ -150,7 +150,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, client }) => {
               <div
                 key={index}
                 className={`p-3 rounded ${message.role === 'user'
-                    ? 'bg-primary text-primary-content self-end'
+                    ? 'bg-blue-700 text-white self-end font-medium tracking-wider'
                     : 'bg-base-200'
                   } ${message.isLoading ? 'opacity-70' : ''}`}
                 style={{ maxWidth: '80%', alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start' }}
@@ -190,7 +190,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, client }) => {
             <div className="input-group flex gap-1">
               <input
                 type="text"
-                className="input flex-grow"
+                className="input flex-grow mr-2"
                 placeholder="Type your message..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -198,7 +198,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, client }) => {
               />
               <button
                 type="submit"
-                className="btn btn-primary"
+                className="btn bg-yellow-300 text-black hover:bg-slate-600 hover:text-slate-50"
                 disabled={isLoading || !input.trim()}
               >
                 {isLoading ?
@@ -208,7 +208,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, client }) => {
               </button>
               <button
                 type="submit"
-                className="btn btn-secondary"
+                className="btn bg-zinc-800 text-slate-50 hover:bg-red-500 hover:text-black"
                 disabled={chatIsClosed}
                 onClick={async () => { await chatApi.closeChat(chatId); setChatIsClosed(true); }}
               >
